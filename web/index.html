@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
 <body>
@@ -20,7 +20,7 @@
     <div class="wrap header-inner">
       <a href="#topo" class="brand" aria-label="VDN Engenharia, voltar ao início">
         <span class="brand-mark" data-logo="mark"></span>
-        <span class="brand-text">
+        <span class="brand-text" translate="no">
           <strong>VDN</strong>
           <span>Engenharia</span>
         </span>
@@ -45,7 +45,7 @@
     </nav>
   </header>
 
-  <main id="conteudo">
+  <main id="conteudo" tabindex="-1">
     <!-- HERO ------------------------------------------------------------ -->
     <section class="hero" id="topo" data-theme="dark">
       <div class="sheet" aria-hidden="true">
@@ -71,6 +71,9 @@
 
         <figure class="hero-figure" aria-label="Símbolo da VDN: engrenagem, rolamento e cantoneira">
           <div class="hero-logo" data-logo="hero"></div>
+          <button type="button" class="motion-toggle" aria-pressed="false" hidden>
+            <span class="motion-icon" aria-hidden="true"></span><span class="motion-label">Pausar movimento</span>
+          </button>
           <svg class="hero-callouts" viewBox="0 0 600 690" aria-hidden="true">
             <g class="callout" style="--i:0">
               <path d="M520 120 L580 62 H720" />
@@ -107,7 +110,7 @@
           </div>
           <div class="tb-cell tb-wide">
             <dt>Responsável técnico</dt>
-            <dd>Eng. Vicente Daniel Vaz da Silva, M.Sc.</dd>
+            <dd>Eng.&nbsp;Vicente Daniel Vaz da Silva, M.Sc.</dd>
           </div>
           <div class="tb-cell">
             <dt>Escala</dt>
@@ -128,7 +131,7 @@
           </p>
           <ul class="sol-list" role="tablist" aria-label="Áreas de atuação" aria-orientation="vertical"></ul>
         </div>
-        <div class="sol-panel" role="tabpanel" aria-live="polite">
+        <div class="sol-panel" id="sol-panel" role="tabpanel" tabindex="0">
           <div class="sol-drawing"></div>
           <div class="sol-detail">
             <h3 class="sol-title"></h3>
@@ -157,9 +160,9 @@
           </figure>
           <aside class="patent-side">
             <dl class="patent-spec">
-              <div><dt>Registro</dt><dd>BR 20 2021 018605-0</dd></div>
+              <div><dt>Registro</dt><dd>BR&nbsp;20&nbsp;2021&nbsp;018605-0</dd></div>
               <div><dt>Natureza</dt><dd>Modelo de utilidade</dd></div>
-              <div><dt>Depósito</dt><dd>17 set. 2021</dd></div>
+              <div><dt>Depósito</dt><dd>17&nbsp;set.&nbsp;2021</dd></div>
               <div><dt>Inventor</dt><dd>Vicente Daniel Vaz da Silva</dd></div>
             </dl>
             <ol class="patent-legend">
@@ -241,7 +244,7 @@
           <dl class="contact-list">
             <div>
               <dt>Telefone</dt>
-              <dd><a href="tel:+553133902467">(31) 3390-2467</a></dd>
+              <dd><a href="tel:+553133902467">(31)&nbsp;3390-2467</a></dd>
             </div>
             <div>
               <dt>Endereço</dt>
@@ -263,7 +266,8 @@
         <form class="contact-form" novalidate>
           <div class="field">
             <label for="f-nome">Nome</label>
-            <input id="f-nome" name="nome" autocomplete="name" required />
+            <input id="f-nome" name="nome" autocomplete="name" required aria-describedby="e-nome" />
+            <p class="field-error" id="e-nome"></p>
           </div>
           <div class="field">
             <label for="f-empresa">Empresa</label>
@@ -272,11 +276,12 @@
           <div class="field-row">
             <div class="field">
               <label for="f-email">E-mail</label>
-              <input id="f-email" name="email" type="email" autocomplete="email" required />
+              <input id="f-email" name="email" type="email" autocomplete="email" spellcheck="false" placeholder="nome@empresa.com.br" required aria-describedby="e-email" />
+              <p class="field-error" id="e-email"></p>
             </div>
             <div class="field">
               <label for="f-tel">Telefone</label>
-              <input id="f-tel" name="telefone" type="tel" autocomplete="tel" />
+              <input id="f-tel" name="telefone" type="tel" autocomplete="tel" placeholder="(31) 99999-0000" />
             </div>
           </div>
           <fieldset class="field">
@@ -285,10 +290,11 @@
           </fieldset>
           <div class="field">
             <label for="f-msg">Descrição</label>
-            <textarea id="f-msg" name="mensagem" rows="5" required placeholder="Ex.: base de peneira com trincas por vibração, precisamos de reforço até março."></textarea>
+            <textarea id="f-msg" name="mensagem" rows="5" required aria-describedby="e-msg" placeholder="Ex.: base de peneira com trincas por vibração, precisamos de reforço até março…"></textarea>
+            <p class="field-error" id="e-msg"></p>
           </div>
           <button type="submit" class="btn btn-block">Enviar mensagem</button>
-          <p class="form-status" role="status"></p>
+          <p class="form-status" role="status" aria-live="polite"></p>
         </form>
       </div>
     </section>
@@ -298,7 +304,7 @@
     <div class="wrap footer-inner">
       <div class="brand">
         <span class="brand-mark" data-logo="mark"></span>
-        <span class="brand-text"><strong>VDN</strong><span>Engenharia</span></span>
+        <span class="brand-text" translate="no"><strong>VDN</strong><span>Engenharia</span></span>
       </div>
       <p>VDN Engenharia, Projetos Mecânicos e Estruturais Ltda.<br />CNPJ 06.107.485/0001-01</p>
       <p>© <span data-year></span> VDN Engenharia</p>

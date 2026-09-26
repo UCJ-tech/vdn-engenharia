@@ -13,7 +13,11 @@ const $$ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = doc
 document.documentElement.classList.toggle('js', !reduced)
 
 /* Símbolo ---------------------------------------------------------------- */
-$$('[data-logo="mark"]').forEach((el, i) => (el.innerHTML = buildLogo({ stroke: 26, detail: 'mark', idPrefix: `mk${i}` })))
+// o nome já aparece ao lado do símbolo: a marca pequena é decorativa para leitores de tela
+$$('[data-logo="mark"]').forEach((el, i) => {
+  el.innerHTML = buildLogo({ stroke: 26, detail: 'mark', idPrefix: `mk${i}` })
+  el.firstElementChild!.setAttribute('aria-hidden', 'true')
+})
 const heroLogo = $('[data-logo="hero"]')
 heroLogo.innerHTML = buildLogo({ stroke: 5, idPrefix: 'hero' })
 
@@ -44,6 +48,11 @@ menuBtn.addEventListener('click', () => {
   menu.hidden = !open
   updateHeader()
 })
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || menu.hidden) return
+  closeMenu()
+  menuBtn.focus()
+})
 
 $$<HTMLAnchorElement>('a[href^="#"]').forEach((a) =>
   a.addEventListener('click', (e) => {
@@ -54,13 +63,20 @@ $$<HTMLAnchorElement>('a[href^="#"]').forEach((a) =>
     closeMenu()
     if (lenis) lenis.scrollTo(id === '#topo' ? 0 : target, { offset: -76 })
     else target.scrollIntoView()
+    history.replaceState(null, '', id === '#topo' ? location.pathname + location.search : id)
+    // leva o foco junto com a rolagem (link de pular conteúdo, navegação por teclado)
+    const focusTarget = target === document.body ? $('.brand') : target
+    if (!focusTarget.matches('a, button, input, textarea, [tabindex]')) focusTarget.setAttribute('tabindex', '-1')
+    focusTarget.focus({ preventScroll: true })
   }),
 )
 
 /* Cabeçalho: transparente sobre o hero, sólido depois -------------------- */
 const hero = $('.hero')
+let heroHeight = hero.offsetHeight
+window.addEventListener('resize', () => (heroHeight = hero.offsetHeight))
 function updateHeader() {
-  const past = window.scrollY > hero.offsetHeight - 90
+  const past = window.scrollY > heroHeight - 90
   header.classList.toggle('is-solid', past || menuBtn.getAttribute('aria-expanded') === 'true')
   header.classList.toggle('is-scrolled', window.scrollY > 24)
 }
@@ -85,9 +101,21 @@ const heroShapes = $$<SVGGeometryElement>('path, circle, rect', heroLogo)
 
 let spin = 0
 let boost = 0
+let paused = false
+let heroVisible = true
 if (!reduced) {
+  const motionBtn = $<HTMLButtonElement>('.motion-toggle')
+  motionBtn.hidden = false
+  motionBtn.addEventListener('click', () => {
+    paused = !paused
+    motionBtn.setAttribute('aria-pressed', String(paused))
+    $('.motion-label', motionBtn).textContent = paused ? 'Retomar movimento' : 'Pausar movimento'
+  })
+  new IntersectionObserver(([en]) => (heroVisible = en.isIntersecting)).observe(heroLogo)
+
   // gaiola do rolamento gira a ~40% da pista externa (cinemática de rolamento com pista interna fixa)
   gsap.ticker.add((_t, dt) => {
+    if (paused || !heroVisible) return
     spin += (dt / 1000) * (6 + boost)
     boost *= 0.94
     gear.setAttribute('transform', `rotate(${spin.toFixed(3)})`)
@@ -128,13 +156,17 @@ const solScope = $('.sol-scope')
 solList.innerHTML = solutions
   .map(
     (s, i) =>
-      `<li role="presentation"><button role="tab" id="tab-${s.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-id="${s.id}">${s.title}</button></li>`,
+      `<li role="presentation"><button role="tab" id="tab-${s.id}" aria-selected="${i === 0}" aria-controls="sol-panel" tabindex="${i === 0 ? 0 : -1}" data-id="${s.id}">${s.title}</button></li>`,
   )
   .join('')
 const tabs = $$<HTMLButtonElement>('button', solList)
 
 function showSolution(id: string, animate = true) {
   const s = solutions.find((x) => x.id === id)!
+  const url = new URL(location.href)
+  if (id === solutions[0].id) url.searchParams.delete('area')
+  else url.searchParams.set('area', id)
+  history.replaceState(null, '', url)
   tabs.forEach((t) => {
     const on = t.dataset.id === id
     t.setAttribute('aria-selected', String(on))
@@ -154,17 +186,19 @@ function showSolution(id: string, animate = true) {
 tabs.forEach((t, i) => {
   t.addEventListener('click', () => showSolution(t.dataset.id!))
   t.addEventListener('keydown', (e) => {
-    const dir = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]
-    if (!dir) return
+    const moves: Record<string, number> = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }
+    if (!(e.key in moves)) return
     e.preventDefault()
-    const next = tabs[(i + dir + tabs.length) % tabs.length]
+    const next = tabs[(moves[e.key] + tabs.length) % tabs.length]
     next.focus()
     showSolution(next.dataset.id!)
   })
 })
-showSolution(solutions[0].id, false)
+// ?area=vasos abre direto na área (link compartilhável)
+const initialArea = solutions.find((s) => s.id === new URLSearchParams(location.search).get('area'))?.id ?? solutions[0].id
+showSolution(initialArea, false)
 if (!reduced) {
-  ScrollTrigger.create({ trigger: '.solutions', start: 'top 60%', once: true, onEnter: () => showSolution(solutions[0].id) })
+  ScrollTrigger.create({ trigger: '.solutions', start: 'top 60%', once: true, onEnter: () => showSolution(tabs.find((t) => t.getAttribute('aria-selected') === 'true')!.dataset.id!) })
 }
 
 /* Patente: ciclo de operação conduzido pela rolagem ---------------------- */
@@ -249,8 +283,8 @@ if (!reduced) {
 
 /* Trajetória: régua desliza com a rolagem ------------------------------- */
 if (!reduced) {
-  gsap.fromTo('.ruler', { backgroundPositionX: '0px' }, {
-    backgroundPositionX: '-300px',
+  gsap.fromTo('.ruler', { x: 0 }, {
+    x: -300,
     ease: 'none',
     scrollTrigger: { trigger: '.history', start: 'top bottom', end: 'bottom top', scrub: true },
   })
@@ -264,31 +298,58 @@ $('#f-area').innerHTML = areas
 
 const form = $<HTMLFormElement>('.contact-form')
 const status = $('.form-status', form)
+const submitBtn = $<HTMLButtonElement>('button[type="submit"]', form)
+
+// mensagem ao lado do campo, dizendo como corrigir
+function fieldError(f: HTMLInputElement | HTMLTextAreaElement) {
+  if (f.value.trim() === '') {
+    if (f.name === 'nome') return 'Informe seu nome.'
+    if (f.name === 'email') return 'Informe um e-mail para a resposta.'
+    return 'Descreva brevemente o equipamento ou a estrutura.'
+  }
+  if (f.name === 'email' && !f.checkValidity()) return 'Confira o e-mail: use o formato nome@empresa.com.br.'
+  return ''
+}
+const showError = (f: HTMLInputElement | HTMLTextAreaElement, msg: string) => {
+  f.setAttribute('aria-invalid', String(msg !== ''))
+  const el = document.getElementById(f.getAttribute('aria-describedby') ?? '')
+  if (el) el.textContent = msg
+}
+
 form.addEventListener('submit', (e) => {
   e.preventDefault()
   const required = $$<HTMLInputElement>('[required]', form)
-  let firstInvalid: HTMLInputElement | null = null
-  required.forEach((f) => {
-    const ok = f.checkValidity() && f.value.trim() !== ''
-    f.setAttribute('aria-invalid', String(!ok))
-    if (!ok && !firstInvalid) firstInvalid = f
+  const invalid = required.filter((f) => {
+    const msg = fieldError(f)
+    showError(f, msg)
+    return msg !== ''
   })
-  if (firstInvalid) {
+  if (invalid.length) {
     status.className = 'form-status is-error'
-    const label = $(`label[for="${(firstInvalid as HTMLInputElement).id}"]`).textContent
-    status.textContent = `Preencha o campo ${label?.toLowerCase()} para enviar.`
-    ;(firstInvalid as HTMLInputElement).focus()
+    status.textContent = invalid.length === 1 ? 'Corrija o campo destacado para enviar.' : `Corrija os ${invalid.length} campos destacados para enviar.`
+    invalid[0].focus()
     return
   }
   // Prova de conceito: conectar aqui ao serviço de envio (e-mail, CRM ou formulário hospedado).
   const nome = (form.elements.namedItem('nome') as HTMLInputElement).value.trim().split(' ')[0]
-  status.className = 'form-status is-ok'
-  status.textContent = `Mensagem enviada. Obrigado, ${nome}; retornamos em até um dia útil.`
-  form.reset()
+  submitBtn.setAttribute('aria-busy', 'true')
+  submitBtn.disabled = true
+  submitBtn.textContent = 'Enviando…'
+  status.className = 'form-status'
+  status.textContent = ''
+  setTimeout(() => {
+    submitBtn.removeAttribute('aria-busy')
+    submitBtn.disabled = false
+    submitBtn.textContent = 'Enviar mensagem'
+    status.className = 'form-status is-ok'
+    status.textContent = `Mensagem enviada. Obrigado, ${nome}; retornamos em até um dia útil.`
+    form.reset()
+  }, 900)
 })
+// ao corrigir, a mensagem some assim que o campo fica válido
 form.addEventListener('input', (e) => {
   const t = e.target as HTMLInputElement
-  if (t.getAttribute('aria-invalid') === 'true' && t.checkValidity()) t.setAttribute('aria-invalid', 'false')
+  if (t.getAttribute('aria-invalid') === 'true' && fieldError(t) === '') showError(t, '')
 })
 
 $('[data-year]').textContent = String(new Date().getFullYear())
